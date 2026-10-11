@@ -1,0 +1,8 @@
+# Render blueprint: New > Blueprint > pick this repository. Free plan, 512 MB.
+services:
+  - type: web
+    name: voiceguard-api
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile.free
+    healthCheckPath: /health
