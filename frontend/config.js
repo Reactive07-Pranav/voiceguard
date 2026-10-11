@@ -8,4 +8,4 @@
 //   window.VOICEGUARD_API = "https://your-backend.example.com";
 //
 // The WebSocket address (wss://...) is derived from it automatically.
-window.VOICEGUARD_API = "";
+window.VOICEGUARD_API = "https://voiceguard-api-3x3m.onrender.com";
