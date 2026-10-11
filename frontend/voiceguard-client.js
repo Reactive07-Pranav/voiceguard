@@ -66,14 +66,19 @@ export class VoiceGuardClient {
   }
 
   // ---- REST ---------------------------------------------------------------------
-  async _json(path, init) {
+  async _json(path, init, timeoutMs = 0) {
     let res;
+    // On a weak connection a request can hang without ever failing: give up and let the caller retry.
+    const abort = timeoutMs ? new AbortController() : null;
+    const timer = abort && setTimeout(() => abort.abort(), timeoutMs);
     try {
-      res = await fetch(this.baseUrl + path, init);
+      res = await fetch(this.baseUrl + path, abort ? { ...init, signal: abort.signal } : init);
     } catch (e) {
+      clearTimeout(timer);
       throw new VoiceGuardError("network_error", "Can't reach the VoiceGuard server.");
     }
     const body = await res.json().catch(() => ({}));
+    clearTimeout(timer);
     if (!res.ok) {
       const detail = typeof body.detail === "string" ? body.detail : res.statusText;
       throw new VoiceGuardError(body.code || `http_${res.status}`, detail || `HTTP ${res.status}`);
@@ -81,8 +86,8 @@ export class VoiceGuardClient {
     return body;
   }
 
-  getConfig() { return this._json("/api/config"); }
-  getStatus() { return this._json("/api/status"); }
+  getConfig() { return this._json("/api/config", undefined, 25000); }
+  getStatus() { return this._json("/api/status", undefined, 25000); }
 
   analyzeFile(file) {
     const form = new FormData();
@@ -207,7 +212,7 @@ export class VoiceGuardClient {
       let ready = false;
       const timer = setTimeout(() => {
         if (!ready) { ws.close(); reject(new VoiceGuardError("timeout", "The server did not answer.")); }
-      }, 10000);
+      }, 30000);                                          // slow links and waking hosts need a while
 
       ws.onmessage = (e) => {
         let msg;
@@ -266,7 +271,7 @@ export class VoiceGuardClient {
   clear() { this._sendJson({ type: "clear" }); }
 
   /** Stops listening. Resolves with the server's "stopped" message ({ verdict, ... }) or null. */
-  async stop({ timeoutMs = 15000 } = {}) {
+  async stop({ timeoutMs = 45000 } = {}) {
     if (this.state === "idle" || this.state === "stopping") return null;
     this._setState("stopping");
     this._stopMic();                                    // the mic indicator goes off right away

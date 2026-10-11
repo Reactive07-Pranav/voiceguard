@@ -481,22 +481,25 @@ function applyConfig(config) {
 
 // Free hosts sleep when idle and take up to a minute to wake, so keep trying and say so.
 async function monitor() {
-  for (let failures = 0; ;) {
+  for (let failures = 0, downSince = 0; ;) {
     let delay = 30000;
     if (!document.hidden || !server.ready) {
       try {
         if (!server.config) applyConfig(await client.getConfig());
         setModels((await client.getStatus()).models);
         failures = 0;
+        downSince = 0;
         if (server.loading) delay = 3000;
       } catch {
         failures += 1;
         const changed = server.ready || failures === 1;
         server.ready = false;
         server.slowStart = true;
-        const gone = server.wasReady || failures > 8;
+        downSince = downSince || Date.now();
+        // A sleeping free host, reached over a slow link, can need a few minutes: keep saying so.
+        const gone = Date.now() - downSince > (server.wasReady ? 45000 : 240000);
         setConn(gone ? "offline" : "connecting", gone ? "Offline" : "Connecting");
-        setBadge(gone ? "Server not reachable · the demo still works" : "Waking the server… this can take a minute", gone ? "offline" : "loading");
+        setBadge(gone ? "Server not reachable · the demo still works" : "Waking the server… this can take a minute or two", gone ? "offline" : "loading");
         syncControls();
         if (changed && mode === "idle") setStatus(readyText());
         delay = Math.min(2000 + failures * 1000, 8000);

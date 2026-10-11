@@ -19,6 +19,9 @@ USER app
 ENV HF_HOME=/app/.cache/huggingface \
     WHISPER_MODEL=tiny WHISPER_BEAM_SIZE=1 WHISPER_CPU_THREADS=1 TORCH_NUM_THREADS=1 \
     ANTISPOOF_BACKEND=onnx MAX_SESSIONS=2 MAX_UPLOAD_SECONDS=120 MALLOC_ARENA_MAX=2
+# Speech-to-text costs the same for 4 s as for 10 s of audio, and this CPU needs about 9 s per
+# window, so long windows are what lets it keep up with a live call (measured on Render's free plan).
+ENV WINDOW_SECONDS=10 MIN_WINDOW_SECONDS=7 LANGUAGE_RECHECK_WINDOWS=8
 # Bake the speech model into the image so a cold start doesn't have to download it
 RUN python -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu', compute_type='int8')"
 
